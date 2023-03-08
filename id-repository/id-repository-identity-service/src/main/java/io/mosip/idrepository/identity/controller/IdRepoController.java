@@ -216,6 +216,7 @@ public class IdRepoController {
 			@RequestParam(name = FACE_EXTRACTION_FORMAT, required = false) @Nullable String faceExtractionFormat)
 			throws IdRepoAppException {
 		try {
+
 			type = validator.validateType(type);
 			Map<String, String> extractionFormats = new HashMap<>();
 			if(Objects.nonNull(fingerExtractionFormat)) {

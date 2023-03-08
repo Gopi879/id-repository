@@ -12,6 +12,8 @@ import io.mosip.idrepository.identity.entity.Uin;
  * @author Manoj SP
  */
 public interface UinRepo extends JpaRepository<Uin, String> {
+
+	Uin findByUinHashContaining(String uinhash);
 	
 	/**
 	 * Gets the uin by refId .

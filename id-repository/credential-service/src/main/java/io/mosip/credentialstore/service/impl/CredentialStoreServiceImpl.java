@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.mosip.credentialstore.dto.*;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,13 +21,6 @@ import io.mosip.credentialstore.constants.CredentialFormatter;
 import io.mosip.credentialstore.constants.CredentialServiceErrorCodes;
 import io.mosip.credentialstore.constants.JsonConstants;
 import io.mosip.credentialstore.constants.LoggerFileConstant;
-import io.mosip.credentialstore.dto.AllowedKycDto;
-import io.mosip.credentialstore.dto.CredentialTypeResponse;
-import io.mosip.credentialstore.dto.DataProviderResponse;
-import io.mosip.credentialstore.dto.DataShare;
-import io.mosip.credentialstore.dto.PartnerCredentialTypePolicyDto;
-import io.mosip.credentialstore.dto.PartnerExtractor;
-import io.mosip.credentialstore.dto.PartnerExtractorResponse;
 import io.mosip.credentialstore.exception.ApiNotAccessibleException;
 import io.mosip.credentialstore.exception.CredentialFormatterException;
 import io.mosip.credentialstore.exception.DataShareException;
@@ -160,8 +154,8 @@ public class CredentialStoreServiceImpl implements CredentialStoreService {
 	 * createCredentialIssuance(io.mosip.credentialstore.dto.
 	 * CredentialServiceRequestDto)
 	 */
-	public CredentialServiceResponseDto createCredentialIssuance(
-			CredentialServiceRequestDto credentialServiceRequestDto) {
+	public CredentialCustomResponse createCredentialIssuance(
+			CredentialServiceRequestDto credentialServiceRequestDto,String api) {
 		LOGGER.debug(IdRepoSecurityManager.getUser(),
 				LoggerFileConstant.REQUEST_ID.toString(),
 				credentialServiceRequestDto.getRequestId(),
@@ -170,6 +164,7 @@ public class CredentialStoreServiceImpl implements CredentialStoreService {
 		CredentialServiceResponseDto credentialIssueResponseDto = new CredentialServiceResponseDto();
 		CredentialServiceResponse credentialServiceResponse = null;
 		CredentialProvider credentialProvider;
+		EventModel eventModel = null;
 
 		try {
 
@@ -220,9 +215,11 @@ public class CredentialStoreServiceImpl implements CredentialStoreService {
 
 			}
 			signature = digitalSignatureUtil.sign(encodedData, credentialServiceRequestDto.getRequestId());
-			EventModel eventModel = getEventModel(dataShare, credentialServiceRequestDto,
+			eventModel = getEventModel(dataShare, credentialServiceRequestDto,
 					jsonData, signature);
-			webSubUtil.publishSuccess(credentialServiceRequestDto.getIssuer(), eventModel);
+			if(api == null || api.isEmpty()) {
+				webSubUtil.publishSuccess(credentialServiceRequestDto.getIssuer(), eventModel);
+			}
 			credentialServiceResponse.setSignature(signature);
 			credentialServiceResponse.setStatus("ISSUED");
 			credentialServiceResponse.setCredentialId(dataProviderResponse.getCredentialId());
@@ -344,7 +341,21 @@ public class CredentialStoreServiceImpl implements CredentialStoreService {
 			auditHelper.audit(AuditModules.ID_REPO_CREDENTIAL_SERVICE, AuditEvents.CREATE_CREDENTIAL,
 					credentialServiceRequestDto.getRequestId(), IdType.ID, "Credentials Issued");
 		}
-		return credentialIssueResponseDto;
+		CredentialCustomResponse response = new CredentialCustomResponse();
+		if(api == null || api.isEmpty()) {
+//			System.out.println("credentialIssueResponseDto before set : "+ credentialIssueResponseDto);
+
+			response.setResDto(credentialIssueResponseDto);
+			return  response;
+		}else{
+
+//			System.out.println("credentialIssueResponseDto before set : "+ credentialIssueResponseDto);
+//			System.out.println("eventModel before set : "+ eventModel);
+
+			response.setResDto(credentialIssueResponseDto);
+			response.setEvent(eventModel);
+			return  response;
+		}
 	}
 
 
