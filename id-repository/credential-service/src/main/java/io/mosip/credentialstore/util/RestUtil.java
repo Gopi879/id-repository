@@ -42,16 +42,15 @@ import io.mosip.kernel.core.util.StringUtils;
 import io.mosip.kernel.core.util.TokenHandlerUtil;
 
 public class RestUtil {
-	
-	
-	private RestTemplate restTemplate;
-	
+
+private RestTemplate restTemplate;
+
 	@Value("${idrepo.default.processor.httpclient.connections.max.per.host:20}")
 	private int maxConnectionPerRoute;
 
 	@Value("${idrepo.default.processor.httpclient.connections.max:100}")
 	private int totalMaxConnection;
-	
+
     @Autowired
     private Environment environment;
 
@@ -168,6 +167,7 @@ public class RestUtil {
 		}
 		return result;
     }
+
 	public RestTemplate getRestTemplate() throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
 		if (restTemplate == null) {
 			HttpClientBuilder httpClientBuilder = HttpClients.custom().setMaxConnPerRoute(maxConnectionPerRoute)
@@ -179,6 +179,7 @@ public class RestUtil {
 		}
 		return restTemplate;
 	}
+
 
     private HttpEntity<Object> setRequestHeader(Object requestType, MediaType mediaType) throws IOException {
         MultiValueMap<String, String> headers = new LinkedMultiValueMap<String, String>();

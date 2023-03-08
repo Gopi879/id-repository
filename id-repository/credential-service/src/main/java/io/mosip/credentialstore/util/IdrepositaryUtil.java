@@ -86,7 +86,7 @@ public class IdrepositaryUtil {
 				throw new IdRepoException();
 			}
 			if (responseObject.getErrors() != null && !responseObject.getErrors().isEmpty()) {
-
+				System.out.println("responseObject Error"+responseObject.toString());
 				ServiceError error = responseObject.getErrors().get(0);
 				LOGGER.error(IdRepoSecurityManager.getUser(), LoggerFileConstant.REQUEST_ID.toString(), requestId,
 						error.getMessage());

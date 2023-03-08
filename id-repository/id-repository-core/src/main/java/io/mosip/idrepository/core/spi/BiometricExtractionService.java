@@ -25,6 +25,6 @@ public interface BiometricExtractionService {
  	 * @throws IdRepoAppException the id repo app exception
  	 */
  	CompletableFuture<List<BIR>> extractTemplate(String uinHash, String fileName,
-				String extractionType, String extractionFormat, List<BIR> birsForModality) throws IdRepoAppException;
+				String extractionType, String extractionFormat, List<BIR> birsForModality, String RegId) throws IdRepoAppException;
 	 
 }

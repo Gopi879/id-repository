@@ -789,15 +789,17 @@ public class VidServiceImpl implements VidService<VidRequestDTO, ResponseWrapper
 					.collect(Collectors.toList());
 		
 		eventRequestsList.forEach(reqDto -> {
-			CredentialIssueRequestWrapperDto requestWrapper = new CredentialIssueRequestWrapperDto();
-			requestWrapper.setRequest(reqDto);
-			requestWrapper.setRequesttime(DateUtils.getUTCCurrentDateTime());
-			requestWrapper.setId(env.getProperty(IDA_NOTIFY_REQ_ID));
-			requestWrapper.setVersion(env.getProperty(IDA_NOTIFY_REQ_VER));
-			String eventTypeDisplayName = isUpdated? "Update ID" : "Create ID";
-			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), "notify", "notifying Credential Service for event " + eventTypeDisplayName);
-			sendEventToCredService(requestWrapper);
-			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), "notify", "notified Credential Service for event" + eventTypeDisplayName);
+//			if(!reqDto.getCredentialType().equalsIgnoreCase("auth")) {//auth vid credential is disabled
+				CredentialIssueRequestWrapperDto requestWrapper = new CredentialIssueRequestWrapperDto();
+				requestWrapper.setRequest(reqDto);
+				requestWrapper.setRequesttime(DateUtils.getUTCCurrentDateTime());
+				requestWrapper.setId(env.getProperty(IDA_NOTIFY_REQ_ID));
+				requestWrapper.setVersion(env.getProperty(IDA_NOTIFY_REQ_VER));
+				String eventTypeDisplayName = isUpdated ? "Update ID" : "Create ID";
+				mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), "notify", "notifying Credential Service for event " + eventTypeDisplayName);
+				sendEventToCredService(requestWrapper);
+				mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), "notify", "notified Credential Service for event" + eventTypeDisplayName);
+//			}
 		});
 	}
 	

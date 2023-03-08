@@ -234,6 +234,9 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 	@Value("${id-repo-ida-credential-recepiant:" + IDA + "}")
 	private String credentialRecepiant;
 
+	@Value("${mosip.kernel.uin.length}")
+	private int uinLength;
+
 	@Autowired
 	private PublisherClient<String, EventModel, HttpHeaders> pb;
 
@@ -313,6 +316,7 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 	@Override
 	public IdResponseDTO retrieveIdentity(String id, IdType idType, String type, Map<String, String> extractionFormats)
 			throws IdRepoAppException {
+		mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, "getIdType", "--idtype--"+type+" --extraction_formats-- "+extractionFormats);
 		switch (idType) {
 		case UIN:
 			return retrieveIdentityByUin(id, type, extractionFormats);
@@ -436,6 +440,7 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 			throws IdRepoAppException {
 		List<DocumentsDTO> documents = new ArrayList<>();
 		Uin uinObject = service.retrieveIdentity(uinHash, IdType.UIN, type, null);
+		mosipLogger.info(IdRepoSecurityManager.getUser(),RETRIEVE_IDENTITY,"ID-METHOD","type-- "+type+" --EXTRACTION FORMATS--"+extractionFormats);
 		if (Objects.isNull(type)) {
 			mosipLogger.info(IdRepoSecurityManager.getUser(), RETRIEVE_IDENTITY, "method - " + RETRIEVE_IDENTITY,
 					"filter - null");
@@ -570,7 +575,7 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 					byte[] data = objectStoreHelper.getBiometricObject(uinHash, bio.getBioFileId());
 					if (Objects.nonNull(data)) {
 						if (Objects.nonNull(extractionFormats) && !extractionFormats.isEmpty()) {
-							byte[] extractedData = getBiometricsForRequestedFormats(uinHash, bio.getBioFileId(), extractionFormats, data);
+							byte[] extractedData = getBiometricsForRequestedFormats(uinHash, bio.getBioFileId(), extractionFormats, data, uinObject.getRegId());
 							if (Objects.nonNull(extractedData)) {
 								documents.add(new DocumentsDTO(bio.getBiometricFileType(), CryptoUtil.encodeBase64(extractedData)));
 							}
@@ -597,7 +602,7 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 		});
 	}
 
-	private byte[] getBiometricsForRequestedFormats(String uinHash, String fileName, Map<String, String> extractionFormats, byte[] originalData)
+	private byte[] getBiometricsForRequestedFormats(String uinHash, String fileName, Map<String, String> extractionFormats, byte[] originalData, String RegId)
 			throws IdRepoAppException {
 		try {
 			List<BIRType> originalBirs = cbeffUtil.getBIRDataFromXML(originalData);
@@ -618,7 +623,7 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 					Entry<String, String> format = extractionFormatForModality.get();
 					CompletableFuture<List<BIR>> extractTemplateFuture = biometricExtractionService.extractTemplate(
 							uinHash, fileName, format.getKey(), format.getValue(),
-							cbeffUtil.convertBIRTypeToBIR(birTypesForModality));
+							cbeffUtil.convertBIRTypeToBIR(birTypesForModality), RegId);
 					extractionFutures.add(extractTemplateFuture);
 					
 				} else {
@@ -627,7 +632,6 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 					finalBirs.addAll(cbeffUtil.convertBIRTypeToBIR(birTypesForModality));
 				}
 			}
-			
 			CompletableFuture.allOf(extractionFutures.toArray(new CompletableFuture<?>[extractionFutures.size()])).join();
 			for(CompletableFuture<List<BIR>> future:  extractionFutures) {
 				finalBirs.addAll(future.get());
@@ -886,15 +890,18 @@ public class IdRepoProxyServiceImpl implements IdRepoService<IdRequestDTO, IdRes
 		}
 
 		eventRequestsList.forEach(reqDto -> {
-			CredentialIssueRequestWrapperDto requestWrapper = new CredentialIssueRequestWrapperDto();
-			requestWrapper.setRequest(reqDto);
-			requestWrapper.setRequesttime(DateUtils.getUTCCurrentDateTime());
-			String eventTypeDisplayName = isUpdate ? "Update ID" : "Create ID";
-			mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, "notify",
-					"notifying Credential Service for event " + eventTypeDisplayName);
-			sendRequestToCredService(requestWrapper);
-			mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, "notify",
-					"notified Credential Service for event" + eventTypeDisplayName);
+//			if(reqDto.getCredentialType().equalsIgnoreCase(IdRepoProxyServiceImpl.AUTH)
+//					&& reqDto.getId().length() == uinLength) {//cred auth disabled
+				CredentialIssueRequestWrapperDto requestWrapper = new CredentialIssueRequestWrapperDto();
+				requestWrapper.setRequest(reqDto);
+				requestWrapper.setRequesttime(DateUtils.getUTCCurrentDateTime());
+				String eventTypeDisplayName = isUpdate ? "Update ID" : "Create ID";
+				mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, "notify",
+						"notifying Credential Service for event " + eventTypeDisplayName);
+				sendRequestToCredService(requestWrapper);
+				mosipLogger.info(IdRepoSecurityManager.getUser(), ID_REPO_SERVICE_IMPL, "notify",
+						"notified Credential Service for event" + eventTypeDisplayName);
+//			}
 		});
 	}
 

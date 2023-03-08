@@ -6,10 +6,17 @@ import static io.mosip.idrepository.core.constant.IdRepoErrorConstants.FILE_STOR
 import static io.mosip.idrepository.core.constant.IdRepoErrorConstants.UNKNOWN_ERROR;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
+import io.mosip.idrepository.identity.entity.ExtractionFailTracking;
+import io.mosip.idrepository.identity.entity.Uin;
+import io.mosip.idrepository.identity.repository.ExtractionFailTrackingRepo;
+import io.mosip.idrepository.identity.repository.UinRepo;
+import io.mosip.kernel.core.cbeffutil.jaxbclasses.SingleType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -65,6 +72,11 @@ public class BiometricExtractionServiceImpl implements BiometricExtractionServic
 	/** The cbeff util. */
 	@Autowired
 	private CbeffUtil cbeffUtil;
+
+	@Autowired
+	private ExtractionFailTrackingRepo extractFail;
+	@Autowired
+	private UinRepo uinRepo;
 	
 	/**
 	 * Extract template.
@@ -79,10 +91,12 @@ public class BiometricExtractionServiceImpl implements BiometricExtractionServic
 	 */
 	@Async("withSecurityContext")
 	public CompletableFuture<List<BIR>> extractTemplate(String uinHash, String fileName,
-			String extractionType, String extractionFormat, List<BIR> birsForModality) throws IdRepoAppException {
+			String extractionType, String extractionFormat, List<BIR> birsForModality, String RegId) throws IdRepoAppException {
 		try {
 			String extractionFileName = fileName.split("\\.")[0] + DOT + getModalityForFormat(extractionType) + DOT + extractionFormat;
 			// TODO need to remove AmazonS3Exception handling
+			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), EXTRACT_TEMPLATE,
+					"checking minio files: ");
 			try {
 				if (objectStoreHelper.biometricObjectExists(uinHash, extractionFileName)) {
 					mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), EXTRACT_TEMPLATE,
@@ -98,9 +112,38 @@ public class BiometricExtractionServiceImpl implements BiometricExtractionServic
 			
 			mosipLogger.info(IdRepoSecurityManager.getUser(), this.getClass().getSimpleName(), EXTRACT_TEMPLATE,
 					"EXTRATCING BIOMETRICS FOR FORMAT: " + extractionType +" : "+ extractionFormat);
-			Map<String, String> formatFlag = Map.of(getFormatFlag(extractionType), extractionFormat);
+			Map<String, String> formatFlag = new java.util.HashMap<>(Map.of(getFormatFlag(extractionType), extractionFormat));
+//			Uin uinDetails= uinRepo.findByUinHashContaining(uinHash);
+			if(RegId != null) {
+				formatFlag.put("RID", RegId);
+//				mosipLogger.info("formatFlagMap get RID : "+formatFlag.get("RID"));
+			}
 			List<BIR> extractedBiometrics = extractBiometricTemplate(formatFlag, birsForModality);
-		
+
+//			for loop to go through BIR
+//			for(BIR bir: extractedBiometrics){
+//				mosipLogger.info("quality score  : "+bir.getBdbInfo().getQuality().getScore());
+//				mosipLogger.info("biometric type"+bir.getBdbInfo().getType());
+//				mosipLogger.info("biometric subtype"+bir.getBdbInfo().getSubtype());
+//
+//
+//
+//			}
+
+			if(extractedBiometrics.isEmpty()){
+				ExtractionFailTracking tracker = new ExtractionFailTracking();
+//				Uin uinDetails= uinRepo.findByUinHashContaining(uinHash);
+				if(RegId != null && !birsForModality.isEmpty()) {
+					tracker.setUinHash(uinHash);
+					tracker.setStatusCode("FAILED");
+					tracker.setStatusComment("extraction failed for " + birsForModality.get(0).getBdbInfo().getType() + " modality");
+					tracker.setCrDtimes(LocalDateTime.now());
+					tracker.setRegId(RegId);
+					extractFail.save(tracker);
+				}
+
+
+			}
 			objectStoreHelper.putBiometricObject(uinHash, extractionFileName, cbeffUtil.createXML(extractedBiometrics));
 			return CompletableFuture.completedFuture(extractedBiometrics);
 		} catch (IdRepoDataValidationException e) {
